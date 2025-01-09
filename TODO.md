@@ -1,22 +1,22 @@
 # プロジェクトTODO
 
-## 環境構築 🔥
+## 環境構築 ✅
 - [x] プロジェクトの基本構成作成
   - [x] .gitignore の設定
   - [x] README.md の作成
   - [x] プロジェクトディレクトリ構造の作成
-- [ ] Python仮想環境の構築 🔥
-  - [ ] Python 3.8以上のインストール確認
-  - [ ] venv環境の作成
-- [ ] 必要なライブラリのインストール
-  - [ ] requirements.txtの作成
-    - [ ] データ処理：pandas, numpy
-    - [ ] 機械学習：scikit-learn, optuna
-    - [ ] 可視化：matplotlib, seaborn
-    - [ ] 開発支援：jupyter, pytest, black, flake8
+- [x] Python仮想環境の構築
+  - [x] Python 3.8以上のインストール確認
+  - [x] venv環境の作成
+- [x] 必要なライブラリのインストール
+  - [x] requirements.txtの作成
+    - [x] データ処理：pandas, numpy
+    - [x] 機械学習：scikit-learn, optuna
+    - [x] 可視化：matplotlib, seaborn
+    - [x] 開発支援：jupyter, pytest, black, flake8
 
-## データ収集
-- [ ] データ収集方法の設計
+## データ収集 🔥
+- [ ] データ収集方法の設計 🔥
   - [ ] 収集項目の整理
   - [ ] データ形式の定義（CSVファイル形式）
   - [ ] 収集手順の文書化
@@ -39,8 +39,8 @@
   - [ ] 評価機能の実装
 
 ## 🏃 次のアクション
-1. Python 3.8以上のインストール確認
-2. venv環境の作成
-3. requirements.txtの作成
+1. データ収集項目の整理
+2. データ形式の定義
+3. 収集手順の文書化
 
 ※ 🔥は現在の優先タスク 
