@@ -41,3 +41,8 @@ data/processed/*
 
 # Logs
 *.log 
+
+# 環境設定ファイル
+.env
+*.env
+config/local.py 
