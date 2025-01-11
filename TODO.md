@@ -14,6 +14,13 @@
 2. フロントエンド
    - [x] Node.js
    - [x] npm
+   - [x] Next.js
+   - [x] TypeScript
+   - [x] Tailwind CSS
+   - [x] ESLint
+   - [x] Zustand
+   - [x] React Query
+   - [x] React Hook Form + Zod
 
 ### 未インストール 📦
 1. フロントエンド
@@ -41,7 +48,8 @@
    - [ ] エラーハンドリング
 
 2. フロントエンド
-   - [ ] Next.jsプロジェクト作成
+   - [x] Next.jsプロジェクト作成
+   - [x] 必要なライブラリのインストール
    - [ ] 基本コンポーネント設計
      - [ ] レシピ登録フォーム
      - [ ] レシピ一覧表示
