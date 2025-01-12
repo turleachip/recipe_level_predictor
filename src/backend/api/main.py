@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from datetime import datetime
 import math
 
-from .models import RecipeCreate, RecipeResponse, RecipeFilter, PaginatedRecipeResponse
+from .models import RecipeCreate, RecipeResponse, RecipeFilter, PaginatedRecipeResponse, RecipeUpdate
 from .database import get_db, RecipeDB, RecipeStatsDB, TrainingDataDB
 
 app = FastAPI()
@@ -170,6 +170,68 @@ async def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
         return response
 
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/recipes/{recipe_id}", response_model=RecipeResponse)
+async def update_recipe(recipe_id: int, recipe_update: RecipeUpdate, db: Session = Depends(get_db)):
+    try:
+        # レシピの取得
+        recipe = db.query(RecipeDB).filter(RecipeDB.id == recipe_id).first()
+        if recipe is None:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        # 関連データの取得
+        stats = recipe.stats
+        training = recipe.training_data
+        if not stats or not training:
+            raise HTTPException(status_code=404, detail="Recipe data is incomplete")
+
+        # レシピ基本情報の更新
+        for field, value in recipe_update.dict(exclude_unset=True).items():
+            if field in RecipeDB.__table__.columns:
+                setattr(recipe, field, value)
+
+        # レシピ作業情報の更新
+        stats_fields = ["max_durability", "max_quality", "required_durability"]
+        for field in stats_fields:
+            if getattr(recipe_update, field) is not None:
+                setattr(stats, field, getattr(recipe_update, field))
+
+        # トレーニングデータの更新
+        training_fields = ["required_craftsmanship", "required_control", "progress_per_100", "quality_per_100"]
+        for field in training_fields:
+            if getattr(recipe_update, field) is not None:
+                setattr(training, field, getattr(recipe_update, field))
+
+        db.commit()
+        db.refresh(recipe)
+        db.refresh(stats)
+        db.refresh(training)
+
+        # レスポンスの作成
+        response = {
+            "id": recipe.id,
+            "name": recipe.name,
+            "job": recipe.job,
+            "recipe_level": recipe.recipe_level,
+            "master_book_level": recipe.master_book_level,
+            "stars": recipe.stars,
+            "patch_version": recipe.patch_version,
+            "collected_at": recipe.collected_at,
+            "max_durability": stats.max_durability,
+            "max_quality": stats.max_quality,
+            "required_durability": stats.required_durability,
+            "required_craftsmanship": training.required_craftsmanship,
+            "required_control": training.required_control,
+            "progress_per_100": training.progress_per_100,
+            "quality_per_100": training.quality_per_100
+        }
+        return response
+
+    except Exception as e:
+        db.rollback()
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))

@@ -184,4 +184,143 @@ def test_get_recipe_not_found():
     # 存在しないIDでのテスト
     response = client.get("/recipes/99999")
     assert response.status_code == 404
-    assert response.json()["detail"] == "Recipe not found" 
+    assert response.json()["detail"] == "Recipe not found"
+
+def test_update_recipe():
+    # テストデータの作成
+    recipe_data = {
+        "name": "更新前のレシピ",
+        "job": "CRP",
+        "recipe_level": 90,
+        "master_book_level": 1,
+        "stars": 2,
+        "patch_version": "6.4",
+        "max_durability": 80,
+        "max_quality": 100,
+        "required_durability": 50,
+        "required_craftsmanship": 3000,
+        "required_control": 3200,
+        "progress_per_100": 120.5,
+        "quality_per_100": 150.8
+    }
+    
+    # レシピを作成
+    create_response = client.post("/recipes", json=recipe_data)
+    assert create_response.status_code == 200
+    created_recipe = create_response.json()
+    recipe_id = created_recipe["id"]
+
+    # 部分的な更新データ
+    update_data = {
+        "name": "更新後のレシピ",
+        "recipe_level": 95,
+        "max_durability": 85
+    }
+
+    # レシピの更新
+    response = client.put(f"/recipes/{recipe_id}", json=update_data)
+    assert response.status_code == 200
+    updated_recipe = response.json()
+
+    # 更新されたフィールドの検証
+    assert updated_recipe["name"] == update_data["name"]
+    assert updated_recipe["recipe_level"] == update_data["recipe_level"]
+    assert updated_recipe["max_durability"] == update_data["max_durability"]
+    
+    # 更新されていないフィールドの検証
+    assert updated_recipe["job"] == recipe_data["job"]
+    assert updated_recipe["stars"] == recipe_data["stars"]
+    assert updated_recipe["quality_per_100"] == recipe_data["quality_per_100"]
+
+def test_update_recipe_full():
+    # テストデータの作成
+    recipe_data = {
+        "name": "全更新前のレシピ",
+        "job": "CRP",
+        "recipe_level": 90,
+        "master_book_level": 1,
+        "stars": 2,
+        "patch_version": "6.4",
+        "max_durability": 80,
+        "max_quality": 100,
+        "required_durability": 50,
+        "required_craftsmanship": 3000,
+        "required_control": 3200,
+        "progress_per_100": 120.5,
+        "quality_per_100": 150.8
+    }
+    
+    # レシピを作成
+    create_response = client.post("/recipes", json=recipe_data)
+    assert create_response.status_code == 200
+    created_recipe = create_response.json()
+    recipe_id = created_recipe["id"]
+
+    # 全項目の更新データ
+    update_data = {
+        "name": "全更新後のレシピ",
+        "job": "BSM",
+        "recipe_level": 95,
+        "master_book_level": 2,
+        "stars": 3,
+        "patch_version": "6.5",
+        "max_durability": 85,
+        "max_quality": 110,
+        "required_durability": 55,
+        "required_craftsmanship": 3100,
+        "required_control": 3300,
+        "progress_per_100": 125.5,
+        "quality_per_100": 155.8
+    }
+
+    # レシピの更新
+    response = client.put(f"/recipes/{recipe_id}", json=update_data)
+    assert response.status_code == 200
+    updated_recipe = response.json()
+
+    # 全フィールドの検証
+    for field in update_data:
+        assert updated_recipe[field] == update_data[field]
+
+def test_update_recipe_not_found():
+    # 存在しないレシピの更新
+    update_data = {"name": "存在しないレシピ"}
+    response = client.put("/recipes/99999", json=update_data)
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Recipe not found"
+
+def test_update_recipe_invalid_data():
+    # テストデータの作成
+    recipe_data = {
+        "name": "無効なデータテスト用レシピ",
+        "job": "CRP",
+        "recipe_level": 90,
+        "master_book_level": 1,
+        "stars": 2,
+        "patch_version": "6.4",
+        "max_durability": 80,
+        "max_quality": 100,
+        "required_durability": 50,
+        "required_craftsmanship": 3000,
+        "required_control": 3200,
+        "progress_per_100": 120.5,
+        "quality_per_100": 150.8
+    }
+    
+    # レシピを作成
+    create_response = client.post("/recipes", json=recipe_data)
+    assert create_response.status_code == 200
+    created_recipe = create_response.json()
+    recipe_id = created_recipe["id"]
+
+    # 無効なデータでの更新
+    invalid_data = {
+        "max_durability": -1,  # 無効な値（0より大きい値が必要）
+        "required_control": 0   # 無効な値（0より大きい値が必要）
+    }
+
+    # レシピの更新を試行
+    response = client.put(f"/recipes/{recipe_id}", json=invalid_data)
+    assert response.status_code == 422  # バリデーションエラーは422
+    error_detail = response.json()
+    assert "detail" in error_detail  # エラー詳細が含まれていることを確認 

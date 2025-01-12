@@ -54,4 +54,22 @@ class PaginatedRecipeResponse(BaseModel):
     items: List[RecipeResponse]
     page: int
     per_page: int
-    total_pages: int 
+    total_pages: int
+
+class RecipeUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    job: Optional[CrafterJob] = None
+    recipe_level: Optional[int] = Field(None, gt=0)
+    master_book_level: Optional[int] = Field(None, ge=0)
+    stars: Optional[int] = Field(None, ge=0, le=5)
+    patch_version: Optional[str] = Field(None, regex=r"^\d+\.\d+$")
+    max_durability: Optional[int] = Field(None, gt=0)
+    max_quality: Optional[int] = Field(None, gt=0)
+    required_durability: Optional[int] = Field(None, gt=0)
+    required_craftsmanship: Optional[int] = Field(None, gt=0)
+    required_control: Optional[int] = Field(None, gt=0)
+    progress_per_100: Optional[float] = Field(None, gt=0)
+    quality_per_100: Optional[float] = Field(None, gt=0)
+
+    class Config:
+        from_attributes = True 
