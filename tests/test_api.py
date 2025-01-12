@@ -133,3 +133,55 @@ def test_get_recipes_with_filter():
     assert data["total"] == 1
     assert data["items"][0]["job"] == "CRP"
     assert data["items"][0]["recipe_level"] >= 85 
+
+def test_get_recipe():
+    # テストデータの作成
+    recipe_data = {
+        "name": "テストレシピ詳細",
+        "job": "CRP",
+        "recipe_level": 90,
+        "master_book_level": 1,
+        "stars": 2,
+        "patch_version": "6.4",
+        "max_durability": 80,
+        "max_quality": 100,
+        "required_durability": 50,
+        "required_craftsmanship": 3000,
+        "required_control": 3200,
+        "progress_per_100": 120.5,
+        "quality_per_100": 150.8
+    }
+    
+    # レシピを作成
+    create_response = client.post("/recipes", json=recipe_data)
+    assert create_response.status_code == 200
+    created_recipe = create_response.json()
+    recipe_id = created_recipe["id"]
+
+    # レシピ詳細の取得テスト
+    response = client.get(f"/recipes/{recipe_id}")
+    assert response.status_code == 200
+    data = response.json()
+
+    # データの検証
+    assert data["id"] == recipe_id
+    assert data["name"] == recipe_data["name"]
+    assert data["job"] == recipe_data["job"]
+    assert data["recipe_level"] == recipe_data["recipe_level"]
+    assert data["master_book_level"] == recipe_data["master_book_level"]
+    assert data["stars"] == recipe_data["stars"]
+    assert data["patch_version"] == recipe_data["patch_version"]
+    assert "collected_at" in data
+    assert data["max_durability"] == recipe_data["max_durability"]
+    assert data["max_quality"] == recipe_data["max_quality"]
+    assert data["required_durability"] == recipe_data["required_durability"]
+    assert data["required_craftsmanship"] == recipe_data["required_craftsmanship"]
+    assert data["required_control"] == recipe_data["required_control"]
+    assert data["progress_per_100"] == recipe_data["progress_per_100"]
+    assert data["quality_per_100"] == recipe_data["quality_per_100"]
+
+def test_get_recipe_not_found():
+    # 存在しないIDでのテスト
+    response = client.get("/recipes/99999")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Recipe not found" 

@@ -135,3 +135,41 @@ async def get_recipes(
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/recipes/{recipe_id}", response_model=RecipeResponse)
+async def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
+    try:
+        # レシピの取得
+        recipe = db.query(RecipeDB).filter(RecipeDB.id == recipe_id).first()
+        if recipe is None:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        # レスポンスの作成
+        stats = recipe.stats
+        training = recipe.training_data
+        if not stats or not training:
+            raise HTTPException(status_code=404, detail="Recipe data is incomplete")
+
+        response = {
+            "id": recipe.id,
+            "name": recipe.name,
+            "job": recipe.job,
+            "recipe_level": recipe.recipe_level,
+            "master_book_level": recipe.master_book_level,
+            "stars": recipe.stars,
+            "patch_version": recipe.patch_version,
+            "collected_at": recipe.collected_at,
+            "max_durability": stats.max_durability,
+            "max_quality": stats.max_quality,
+            "required_durability": stats.required_durability,
+            "required_craftsmanship": training.required_craftsmanship,
+            "required_control": training.required_control,
+            "progress_per_100": training.progress_per_100,
+            "quality_per_100": training.quality_per_100
+        }
+        return response
+
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
