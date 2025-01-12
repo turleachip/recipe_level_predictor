@@ -44,7 +44,7 @@ class RecipeDB(Base):
 class RecipeStatsDB(Base):
     __tablename__ = "recipe_stats"
 
-    id = Column(Integer, ForeignKey("recipes.id"), primary_key=True)
+    id = Column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), primary_key=True)
     max_durability = Column(Integer, nullable=False)
     max_quality = Column(Integer, nullable=False)
     required_durability = Column(Integer, nullable=False)
@@ -54,7 +54,7 @@ class RecipeStatsDB(Base):
 class TrainingDataDB(Base):
     __tablename__ = "training_data"
 
-    id = Column(Integer, ForeignKey("recipes.id"), primary_key=True)
+    id = Column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), primary_key=True)
     required_craftsmanship = Column(Integer, nullable=False)
     required_control = Column(Integer, nullable=False)
     progress_per_100 = Column(Float, nullable=False)

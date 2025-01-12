@@ -324,3 +324,43 @@ def test_update_recipe_invalid_data():
     assert response.status_code == 422  # バリデーションエラーは422
     error_detail = response.json()
     assert "detail" in error_detail  # エラー詳細が含まれていることを確認 
+
+def test_delete_recipe():
+    # テストデータの作成
+    recipe_data = {
+        "name": "削除用テストレシピ",
+        "job": "CRP",
+        "recipe_level": 90,
+        "master_book_level": 1,
+        "stars": 2,
+        "patch_version": "6.4",
+        "max_durability": 80,
+        "max_quality": 100,
+        "required_durability": 50,
+        "required_craftsmanship": 3000,
+        "required_control": 3200,
+        "progress_per_100": 120.5,
+        "quality_per_100": 150.8
+    }
+    
+    # レシピを作成
+    create_response = client.post("/recipes", json=recipe_data)
+    assert create_response.status_code == 200
+    created_recipe = create_response.json()
+    recipe_id = created_recipe["id"]
+
+    # レシピの削除
+    response = client.delete(f"/recipes/{recipe_id}")
+    if response.status_code != 204:
+        print("Error response:", response.json())
+    assert response.status_code == 204
+
+    # 削除されたことを確認
+    get_response = client.get(f"/recipes/{recipe_id}")
+    assert get_response.status_code == 404
+
+def test_delete_recipe_not_found():
+    # 存在しないレシピの削除
+    response = client.delete("/recipes/99999")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Recipe not found" 

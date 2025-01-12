@@ -235,3 +235,24 @@ async def update_recipe(recipe_id: int, recipe_update: RecipeUpdate, db: Session
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/recipes/{recipe_id}", status_code=204)
+async def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
+    try:
+        # レシピの存在確認
+        recipe = db.query(RecipeDB).filter(RecipeDB.id == recipe_id).first()
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        # 関連テーブルのレコードを明示的に削除
+        db.query(TrainingDataDB).filter(TrainingDataDB.id == recipe_id).delete()
+        db.query(RecipeStatsDB).filter(RecipeStatsDB.id == recipe_id).delete()
+        db.query(RecipeDB).filter(RecipeDB.id == recipe_id).delete()
+        
+        db.commit()
+        return None
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
