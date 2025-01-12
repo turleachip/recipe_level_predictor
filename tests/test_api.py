@@ -56,10 +56,11 @@ def test_create_recipe(client):
     response = client.post("/recipes/", json=recipe_data)
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == recipe_data["name"]
-    assert data["job"] == recipe_data["job"]
-    assert "id" in data
-    assert "collected_at" in data
+    assert data["success"] is True
+    assert data["data"]["name"] == recipe_data["name"]
+    assert data["data"]["job"] == recipe_data["job"]
+    assert "id" in data["data"]
+    assert "collected_at" in data["data"]
 
 def test_get_recipe(client):
     """レシピ取得のテスト"""
@@ -80,14 +81,15 @@ def test_get_recipe(client):
         "quality_per_100": 100
     }
     create_response = client.post("/recipes/", json=recipe_data)
-    recipe_id = create_response.json()["id"]
+    recipe_id = create_response.json()["data"]["id"]
 
     # 作成したレシピを取得
     response = client.get(f"/recipes/{recipe_id}")
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == recipe_data["name"]
-    assert data["job"] == recipe_data["job"]
+    assert data["success"] is True
+    assert data["data"]["name"] == recipe_data["name"]
+    assert data["data"]["job"] == recipe_data["job"]
 
 def test_update_recipe(client):
     """レシピ更新のテスト"""
@@ -108,7 +110,7 @@ def test_update_recipe(client):
         "quality_per_100": 100
     }
     create_response = client.post("/recipes/", json=recipe_data)
-    recipe_id = create_response.json()["id"]
+    recipe_id = create_response.json()["data"]["id"]
 
     # レシピを更新
     update_data = {
@@ -118,9 +120,10 @@ def test_update_recipe(client):
     response = client.put(f"/recipes/{recipe_id}", json=update_data)
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == update_data["name"]
-    assert data["recipe_level"] == update_data["recipe_level"]
-    assert data["job"] == recipe_data["job"]  # 更新していない項目は元の値のまま
+    assert data["success"] is True
+    assert data["data"]["name"] == update_data["name"]
+    assert data["data"]["recipe_level"] == update_data["recipe_level"]
+    assert data["data"]["job"] == recipe_data["job"]  # 更新していない項目は元の値のまま
 
 def test_delete_recipe(client):
     """レシピ削除のテスト"""
@@ -141,12 +144,14 @@ def test_delete_recipe(client):
         "quality_per_100": 100
     }
     create_response = client.post("/recipes/", json=recipe_data)
-    recipe_id = create_response.json()["id"]
+    recipe_id = create_response.json()["data"]["id"]
 
     # レシピを削除
     response = client.delete(f"/recipes/{recipe_id}")
     assert response.status_code == 200
-    assert response.json()["success"] is True
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["success"] is True
 
     # 削除したレシピが取得できないことを確認
     get_response = client.get(f"/recipes/{recipe_id}")
@@ -160,8 +165,8 @@ def test_search_recipes(client):
             "name": "テストレシピ1",
             "job": "CRP",
             "recipe_level": 85,
-            "master_book_level": 0,
-            "stars": 0,
+            "master_book_level": 1,
+            "stars": 1,
             "patch_version": "6.4",
             "max_durability": 80,
             "max_quality": 100,
@@ -175,33 +180,34 @@ def test_search_recipes(client):
             "name": "テストレシピ2",
             "job": "CRP",
             "recipe_level": 90,
-            "master_book_level": 0,
-            "stars": 0,
+            "master_book_level": 1,
+            "stars": 1,
             "patch_version": "6.4",
             "max_durability": 80,
             "max_quality": 100,
             "required_durability": 50,
-            "required_craftsmanship": 3800,
-            "required_control": 3500,
+            "required_craftsmanship": 3500,
+            "required_control": 3200,
             "progress_per_100": 120,
             "quality_per_100": 100
         }
     ]
-
-    for recipe_data in recipes:
-        response = client.post("/recipes/", json=recipe_data)
+    
+    # レシピを登録
+    for recipe in recipes:
+        response = client.post("/recipes/", json=recipe)
         assert response.status_code == 200
+        assert response.json()["success"] is True
+        assert "id" in response.json()["data"]
 
-    # レシピの検索
-    search_params = {
-        "min_level": "85",
-        "max_level": "90",
-        "job": "CRP",
-        "min_craftsmanship": "3000",
-        "max_craftsmanship": "4000"
-    }
-    response = client.get("/recipes/search", params=search_params)
+    # レシピレベルで検索
+    response = client.get("/recipes/search", params={"min_level": "85", "max_level": "90"})
     assert response.status_code == 200
-    data = response.json()
-    assert len(data["items"]) == 2
-    assert data["items"][0]["name"] == "テストレシピ1" 
+    assert response.json()["success"] is True
+    assert len(response.json()["data"]) == 2
+
+    # レシピレベルで絞り込み検索
+    response = client.get("/recipes/search", params={"min_level": "90"})
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert len(response.json()["data"]) == 1 

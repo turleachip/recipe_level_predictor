@@ -8,8 +8,8 @@ class ErrorResponse(BaseModel):
     """エラーレスポンスモデル"""
     code: int
     message: str
-    type: str = "error"
-    details: Optional[Dict[str, Any]] = None
+    type: str = "validation_error"
+    details: Optional[Dict[str, Any]] = {}
 
 class StandardResponse(BaseModel, Generic[T]):
     """標準レスポンスモデル"""

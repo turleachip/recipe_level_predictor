@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
 from contextlib import contextmanager
+import sqlalchemy
 
 # データベースURL
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost/ff14_recipe_predictor")
@@ -33,6 +34,11 @@ class RecipeDB(Base):
     # リレーションシップ
     stats = relationship("RecipeStatsDB", back_populates="recipe", uselist=False)
     training_data = relationship("TrainingDataDB", back_populates="recipe", uselist=False)
+
+    # 一意性制約
+    __table_args__ = (
+        sqlalchemy.UniqueConstraint('name', 'job', name='uix_recipe_name_job'),
+    )
 
 class RecipeStatsDB(Base):
     """レシピ作業情報テーブル"""

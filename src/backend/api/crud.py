@@ -1,67 +1,74 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union, Tuple
 from . import models
 from .database import RecipeDB, RecipeStatsDB, TrainingDataDB
 from fastapi import HTTPException
 
-async def create_recipe(db: Session, recipe: models.RecipeCreate) -> Dict[str, Any]:
+async def create_recipe(db: Session, recipe: models.RecipeCreate) -> Union[Dict[str, Any], Tuple[str, int]]:
     """レシピを新規登録する"""
-    # レシピ基本情報の作成
-    db_recipe = RecipeDB(
-        name=recipe.name,
-        job=recipe.job,
-        recipe_level=recipe.recipe_level,
-        master_book_level=recipe.master_book_level,
-        stars=recipe.stars,
-        patch_version=recipe.patch_version,
-        collected_at=datetime.utcnow()
-    )
-    db.add(db_recipe)
-    db.flush()  # IDを生成するためにflush
+    try:
+        # レシピ基本情報の作成
+        db_recipe = RecipeDB(
+            name=recipe.name,
+            job=recipe.job,
+            recipe_level=recipe.recipe_level,
+            master_book_level=recipe.master_book_level,
+            stars=recipe.stars,
+            patch_version=recipe.patch_version,
+            collected_at=datetime.utcnow()
+        )
+        db.add(db_recipe)
+        db.flush()  # IDを生成するためにflush
 
-    # レシピ作業情報の作成
-    db_stats = RecipeStatsDB(
-        id=db_recipe.id,
-        max_durability=recipe.max_durability,
-        max_quality=recipe.max_quality,
-        required_durability=recipe.required_durability
-    )
-    db.add(db_stats)
+        # レシピ作業情報の作成
+        db_stats = RecipeStatsDB(
+            id=db_recipe.id,
+            max_durability=recipe.max_durability,
+            max_quality=recipe.max_quality,
+            required_durability=recipe.required_durability
+        )
+        db.add(db_stats)
 
-    # トレーニングデータの作成
-    db_training = TrainingDataDB(
-        id=db_recipe.id,
-        required_craftsmanship=recipe.required_craftsmanship,
-        required_control=recipe.required_control,
-        progress_per_100=recipe.progress_per_100,
-        quality_per_100=recipe.quality_per_100
-    )
-    db.add(db_training)
+        # トレーニングデータの作成
+        db_training = TrainingDataDB(
+            id=db_recipe.id,
+            required_craftsmanship=recipe.required_craftsmanship,
+            required_control=recipe.required_control,
+            progress_per_100=recipe.progress_per_100,
+            quality_per_100=recipe.quality_per_100
+        )
+        db.add(db_training)
 
-    db.commit()
-    db.refresh(db_recipe)
-    db.refresh(db_stats)
-    db.refresh(db_training)
+        db.commit()
+        db.refresh(db_recipe)
+        db.refresh(db_stats)
+        db.refresh(db_training)
 
-    return {
-        "id": db_recipe.id,
-        "name": db_recipe.name,
-        "job": db_recipe.job,
-        "recipe_level": db_recipe.recipe_level,
-        "master_book_level": db_recipe.master_book_level,
-        "stars": db_recipe.stars,
-        "patch_version": db_recipe.patch_version,
-        "collected_at": db_recipe.collected_at,
-        "max_durability": db_stats.max_durability,
-        "max_quality": db_stats.max_quality,
-        "required_durability": db_stats.required_durability,
-        "required_craftsmanship": db_training.required_craftsmanship,
-        "required_control": db_training.required_control,
-        "progress_per_100": db_training.progress_per_100,
-        "quality_per_100": db_training.quality_per_100
-    }
+        return {
+            "id": db_recipe.id,
+            "name": db_recipe.name,
+            "job": db_recipe.job,
+            "recipe_level": db_recipe.recipe_level,
+            "master_book_level": db_recipe.master_book_level,
+            "stars": db_recipe.stars,
+            "patch_version": db_recipe.patch_version,
+            "collected_at": db_recipe.collected_at,
+            "max_durability": db_stats.max_durability,
+            "max_quality": db_stats.max_quality,
+            "required_durability": db_stats.required_durability,
+            "required_craftsmanship": db_training.required_craftsmanship,
+            "required_control": db_training.required_control,
+            "progress_per_100": db_training.progress_per_100,
+            "quality_per_100": db_training.quality_per_100
+        }
+    except IntegrityError as e:
+        db.rollback()
+        if "Duplicate entry" in str(e):
+            return "Recipe with this name and job already exists", 409
+        return str(e), 400
 
 async def get_recipes(db: Session, skip: int = 0, limit: int = 10) -> Dict[str, Any]:
     """レシピ一覧を取得する"""
@@ -162,7 +169,11 @@ async def delete_recipe(db: Session, recipe_id: int) -> bool:
     if recipe is None:
         return False
 
-    db.delete(recipe)
+    # 関連するレコードを削除
+    db.query(TrainingDataDB).filter(TrainingDataDB.id == recipe_id).delete()
+    db.query(RecipeStatsDB).filter(RecipeStatsDB.id == recipe_id).delete()
+    db.query(RecipeDB).filter(RecipeDB.id == recipe_id).delete()
+    
     db.commit()
     return True
 

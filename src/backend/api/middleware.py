@@ -72,42 +72,54 @@ async def logging_middleware(request: Request, call_next):
         if isinstance(e, HTTPException):
             error_type = "http_error"
         elif isinstance(e, ValidationError):
-            error_type = "validation_error"
-        elif isinstance(e, SQLAlchemyError):
-            error_type = "database_error"
-            
-        logger.error(
-            f"Request failed: {request.method} {request.url.path}",
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "error": str(e),
-                "error_type": error_type,
-                "duration_ms": duration_ms,
-                "traceback": traceback.format_exc()
-            }
-        )
-        
-        # エラーの種類に応じたレスポンスを返す
-        if isinstance(e, HTTPException):
-            return create_error_response(
-                status_code=e.status_code,
-                message=str(e.detail),
-                error_type="http_error"
+            errors = []
+            for error in e.errors():
+                errors.append({
+                    "field": error.get("loc", ["unknown"])[0],
+                    "message": error.get("msg", "Unknown validation error"),
+                    "type": error.get("type", "unknown_error")
+                })
+
+            logger.warning(
+                f"Validation error occurred: {str(e)}",
+                extra={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "error_type": "validation_error",
+                    "errors": errors
+                }
             )
-        elif isinstance(e, ValidationError):
             return create_error_response(
                 status_code=400,
-                message="Invalid parameter value",
+                message="入力値が不正です",
                 error_type="validation_error",
-                details={"errors": e.errors()}
+                details={"errors": errors}
             )
         elif isinstance(e, SQLAlchemyError):
+            error_message = str(e)
+            status_code = 500
+            error_type = "database_error"
+
+            # 一意性制約違反の検出
+            if "Duplicate entry" in error_message and "uix_recipe_name_job" in error_message:
+                status_code = 409
+                error_type = "conflict_error"
+                error_message = "同じ名前と職業の組み合わせのレシピが既に存在します"
+
+            logger.error(
+                f"Database error occurred: {error_message}",
+                extra={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "error_type": error_type,
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }
+            )
             return create_error_response(
-                status_code=500,
-                message="Database error occurred",
-                error_type="database_error",
+                status_code=status_code,
+                message=error_message,
+                error_type=error_type,
                 details={"error": str(e)}
             )
         else:
@@ -124,57 +136,86 @@ def setup_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         """HTTPExceptionのハンドリング"""
+        error_type = "http_error"
+        
+        # バリデーションエラーの場合は、error_typeを変更
+        if exc.status_code == 400 and "validation" in str(exc.detail).lower():
+            error_type = "validation_error"
+        
         logger.warning(
             f"HTTP error occurred: {exc.detail}",
             extra={
                 "status_code": exc.status_code,
                 "path": request.url.path,
                 "method": request.method,
-                "error_type": "http_error"
+                "error_type": error_type
             }
         )
         return create_error_response(
             status_code=exc.status_code,
             message=str(exc.detail),
-            error_type="http_error"
+            error_type=error_type
         )
 
     @app.exception_handler(ValidationError)
     async def validation_error_handler(request: Request, exc: ValidationError):
         """バリデーションエラーのハンドリング"""
+        errors = []
+        for error in exc.errors():
+            errors.append({
+                "field": error.get("loc", ["unknown"])[0],
+                "message": error.get("msg", "Unknown validation error"),
+                "type": error.get("type", "unknown_error")
+            })
+
+        error_message = "入力値が不正です"
         logger.warning(
-            f"Validation error occurred: {str(exc)}",
+            f"validation_error: {error_message}",
             extra={
                 "path": request.url.path,
                 "method": request.method,
                 "error_type": "validation_error",
-                "error": str(exc)
+                "errors": errors,
+                "status_code": 400
             }
         )
-        return create_error_response(
-            status_code=400,
-            message="Invalid parameter value",
-            error_type="validation_error",
-            details={"errors": exc.errors()}
+
+        error_response = ErrorResponse(
+            code=400,
+            message=error_message,
+            type="validation_error",
+            details={"errors": errors}
         )
+        
+        return StandardResponse.error_response(error=error_response)
 
     @app.exception_handler(SQLAlchemyError)
     async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
         """データベースエラーのハンドリング"""
+        error_message = str(exc)
+        status_code = 500
+        error_type = "database_error"
+
+        # 一意性制約違反の検出
+        if "Duplicate entry" in error_message and "uix_recipe_name_job" in error_message:
+            status_code = 409
+            error_type = "conflict_error"
+            error_message = "同じ名前と職業の組み合わせのレシピが既に存在します"
+
         logger.error(
-            f"Database error occurred: {str(exc)}",
+            f"Database error occurred: {error_message}",
             extra={
                 "path": request.url.path,
                 "method": request.method,
-                "error_type": "database_error",
+                "error_type": error_type,
                 "error": str(exc),
                 "traceback": traceback.format_exc()
             }
         )
         return create_error_response(
-            status_code=500,
-            message="Database error occurred",
-            error_type="database_error",
+            status_code=status_code,
+            message=error_message,
+            error_type=error_type,
             details={"error": str(exc)}
         )
 
