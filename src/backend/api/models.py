@@ -1,88 +1,61 @@
 from pydantic import BaseModel, Field
-from enum import Enum
+from typing import Optional
 from datetime import datetime
-from typing import Optional, List
-
-class CrafterJob(str, Enum):
-    CRP = "CRP"
-    BSM = "BSM"
-    ARM = "ARM"
-    GSM = "GSM"
-    LTW = "LTW"
-    WVR = "WVR"
-    ALC = "ALC"
-    CUL = "CUL"
 
 class RecipeBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    job: CrafterJob
-    recipe_level: int = Field(..., gt=0)
-    master_book_level: int = Field(default=0, ge=0)
-    stars: int = Field(default=0, ge=0, le=5)
-    patch_version: str = Field(..., regex=r"^\d+\.\d+$")
+    """レシピの基本情報"""
+    name: str = Field(..., description="レシピ名")
+    job: str = Field(..., description="クラフタージョブ")
+    recipe_level: int = Field(..., description="レシピレベル")
+    master_book_level: Optional[int] = Field(None, description="秘伝書レベル")
+    stars: Optional[int] = Field(None, description="星の数")
+    patch_version: str = Field(..., description="パッチバージョン")
+    max_durability: int = Field(..., description="最大耐久")
+    max_quality: int = Field(..., description="最大品質")
+    required_durability: int = Field(..., description="必要耐久")
+    required_craftsmanship: int = Field(..., description="必要作業精度")
+    required_control: int = Field(..., description="必要加工精度")
+    progress_per_100: float = Field(..., description="作業100あたりの進捗")
+    quality_per_100: float = Field(..., description="加工100あたりの品質")
 
 class RecipeCreate(RecipeBase):
-    max_durability: int = Field(..., gt=0)
-    max_quality: int = Field(..., gt=0)
-    required_durability: int = Field(..., gt=0)
-    required_craftsmanship: int = Field(..., gt=0)
-    required_control: int = Field(..., gt=0)
-    progress_per_100: float = Field(..., gt=0)
-    quality_per_100: float = Field(..., gt=0)
+    """レシピ作成リクエスト"""
+    pass
+
+class RecipeUpdate(BaseModel):
+    """レシピ更新リクエスト"""
+    name: Optional[str] = None
+    job: Optional[str] = None
+    recipe_level: Optional[int] = None
+    master_book_level: Optional[int] = None
+    stars: Optional[int] = None
+    patch_version: Optional[str] = None
+    max_durability: Optional[int] = None
+    max_quality: Optional[int] = None
+    required_durability: Optional[int] = None
+    required_craftsmanship: Optional[int] = None
+    required_control: Optional[int] = None
+    progress_per_100: Optional[float] = None
+    quality_per_100: Optional[float] = None
 
 class Recipe(RecipeBase):
+    """レシピレスポンス"""
     id: int
     collected_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
-class RecipeResponse(Recipe, RecipeCreate):
-    class Config:
-        from_attributes = True
-        populate_by_name = True
-
-class RecipeFilter(BaseModel):
-    job: Optional[CrafterJob] = None
+class RecipeSearchParams(BaseModel):
+    """レシピ検索パラメータ"""
+    name: Optional[str] = None
+    job: Optional[str] = None
     min_level: Optional[int] = None
     max_level: Optional[int] = None
     master_book_level: Optional[int] = None
     stars: Optional[int] = None
-
-class RecipeSearchFilter(BaseModel):
-    name: Optional[str] = Field(None, min_length=0, max_length=100)
-    job: Optional[CrafterJob] = None
-    min_level: Optional[int] = Field(None, ge=1)
-    max_level: Optional[int] = Field(None, ge=1)
-    min_craftsmanship: Optional[int] = Field(None, ge=0)
-    max_craftsmanship: Optional[int] = Field(None, ge=0)
-    min_control: Optional[int] = Field(None, ge=0)
-    max_control: Optional[int] = Field(None, ge=0)
-    master_book_level: Optional[int] = Field(None, ge=0)
-    stars: Optional[int] = Field(None, ge=0, le=5)
-    patch_version: Optional[str] = Field(None, regex=r"^\d+\.\d+$")
-
-class PaginatedRecipeResponse(BaseModel):
-    total: int
-    items: List[RecipeResponse]
-    page: int
-    per_page: int
-    total_pages: int
-
-class RecipeUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    job: Optional[CrafterJob] = None
-    recipe_level: Optional[int] = Field(None, gt=0)
-    master_book_level: Optional[int] = Field(None, ge=0)
-    stars: Optional[int] = Field(None, ge=0, le=5)
-    patch_version: Optional[str] = Field(None, regex=r"^\d+\.\d+$")
-    max_durability: Optional[int] = Field(None, gt=0)
-    max_quality: Optional[int] = Field(None, gt=0)
-    required_durability: Optional[int] = Field(None, gt=0)
-    required_craftsmanship: Optional[int] = Field(None, gt=0)
-    required_control: Optional[int] = Field(None, gt=0)
-    progress_per_100: Optional[float] = Field(None, gt=0)
-    quality_per_100: Optional[float] = Field(None, gt=0)
-
-    class Config:
-        from_attributes = True 
+    patch_version: Optional[str] = None
+    min_craftsmanship: Optional[int] = None
+    max_craftsmanship: Optional[int] = None
+    min_control: Optional[int] = None
+    max_control: Optional[int] = None 
