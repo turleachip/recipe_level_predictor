@@ -49,6 +49,19 @@ class RecipeFilter(BaseModel):
     master_book_level: Optional[int] = None
     stars: Optional[int] = None
 
+class RecipeSearchFilter(BaseModel):
+    name: Optional[str] = Field(None, min_length=0, max_length=100)
+    job: Optional[CrafterJob] = None
+    min_level: Optional[int] = Field(None, ge=1)
+    max_level: Optional[int] = Field(None, ge=1)
+    min_craftsmanship: Optional[int] = Field(None, ge=0)
+    max_craftsmanship: Optional[int] = Field(None, ge=0)
+    min_control: Optional[int] = Field(None, ge=0)
+    max_control: Optional[int] = Field(None, ge=0)
+    master_book_level: Optional[int] = Field(None, ge=0)
+    stars: Optional[int] = Field(None, ge=0, le=5)
+    patch_version: Optional[str] = Field(None, regex=r"^\d+\.\d+$")
+
 class PaginatedRecipeResponse(BaseModel):
     total: int
     items: List[RecipeResponse]

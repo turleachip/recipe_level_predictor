@@ -4,8 +4,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from datetime import datetime
 import math
+from typing import Optional
 
-from .models import RecipeCreate, RecipeResponse, RecipeFilter, PaginatedRecipeResponse, RecipeUpdate
+from .models import (
+    RecipeCreate,
+    RecipeResponse,
+    RecipeFilter,
+    PaginatedRecipeResponse,
+    RecipeUpdate,
+    RecipeSearchFilter,
+    CrafterJob
+)
 from .database import get_db, RecipeDB, RecipeStatsDB, TrainingDataDB
 
 app = FastAPI()
@@ -255,4 +264,86 @@ async def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
         raise e
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search/recipes", response_model=PaginatedRecipeResponse)
+async def search_recipes(
+    page: int = Query(1, gt=0),
+    per_page: int = Query(10, gt=0, le=100),
+    name: Optional[str] = Query(None, min_length=0, max_length=100),
+    job: Optional[CrafterJob] = Query(None),
+    min_level: Optional[int] = Query(None, ge=1),
+    max_level: Optional[int] = Query(None, ge=1),
+    min_craftsmanship: Optional[int] = Query(None, ge=0),
+    max_craftsmanship: Optional[int] = Query(None, ge=0),
+    min_control: Optional[int] = Query(None, ge=0),
+    max_control: Optional[int] = Query(None, ge=0),
+    master_book_level: Optional[int] = Query(None, ge=0),
+    stars: Optional[int] = Query(None, ge=0, le=5),
+    patch_version: Optional[str] = Query(None, regex=r"^\d+\.\d+$"),
+    db: Session = Depends(get_db)
+):
+    try:
+        # フィルター条件の構築
+        conditions = []
+        if name:
+            conditions.append(RecipeDB.name.like(f"%{name}%"))
+        if job:
+            conditions.append(RecipeDB.job == job)
+        if min_level:
+            conditions.append(RecipeDB.recipe_level >= min_level)
+        if max_level:
+            conditions.append(RecipeDB.recipe_level <= max_level)
+        if master_book_level is not None:
+            conditions.append(RecipeDB.master_book_level == master_book_level)
+        if stars is not None:
+            conditions.append(RecipeDB.stars == stars)
+        if patch_version:
+            conditions.append(RecipeDB.patch_version == patch_version)
+
+        # クラフター要求値による絞り込み
+        if min_craftsmanship is not None:
+            conditions.append(TrainingDataDB.required_craftsmanship >= min_craftsmanship)
+        if max_craftsmanship is not None:
+            conditions.append(TrainingDataDB.required_craftsmanship <= max_craftsmanship)
+        if min_control is not None:
+            conditions.append(TrainingDataDB.required_control >= min_control)
+        if max_control is not None:
+            conditions.append(TrainingDataDB.required_control <= max_control)
+
+        # クエリの構築
+        query = db.query(RecipeDB).join(RecipeStatsDB).join(TrainingDataDB)
+        if conditions:
+            query = query.filter(and_(*conditions))
+
+        # 総件数の取得
+        total = query.count()
+
+        # ページネーション
+        recipes = query.offset((page - 1) * per_page).limit(per_page).all()
+        
+        # レスポンスの作成
+        items = []
+        for recipe in recipes:
+            stats = recipe.stats
+            training = recipe.training_data
+            if stats and training:
+                item = {
+                    **recipe.__dict__,
+                    **stats.__dict__,
+                    **training.__dict__
+                }
+                items.append(item)
+
+        return {
+            "total": total,
+            "items": items,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": math.ceil(total / per_page)
+        }
+
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=str(e))

@@ -364,3 +364,107 @@ def test_delete_recipe_not_found():
     response = client.delete("/recipes/99999")
     assert response.status_code == 404
     assert response.json()["detail"] == "Recipe not found" 
+
+def test_search_recipes():
+    # テストデータの作成
+    recipes = [
+        {
+            "name": "ハイスチール・インゴット",
+            "job": "BSM",
+            "recipe_level": 90,
+            "master_book_level": 1,
+            "stars": 2,
+            "patch_version": "6.4",
+            "max_durability": 80,
+            "max_quality": 100,
+            "required_durability": 50,
+            "required_craftsmanship": 3000,
+            "required_control": 3200,
+            "progress_per_100": 120.5,
+            "quality_per_100": 150.8
+        },
+        {
+            "name": "ハイスチール・プレート",
+            "job": "BSM",
+            "recipe_level": 90,
+            "master_book_level": 1,
+            "stars": 2,
+            "patch_version": "6.4",
+            "max_durability": 80,
+            "max_quality": 100,
+            "required_durability": 50,
+            "required_craftsmanship": 3100,
+            "required_control": 3300,
+            "progress_per_100": 120.5,
+            "quality_per_100": 150.8
+        },
+        {
+            "name": "クラフターズデライト・シロップ",
+            "job": "ALC",
+            "recipe_level": 88,
+            "master_book_level": 0,
+            "stars": 0,
+            "patch_version": "6.4",
+            "max_durability": 70,
+            "max_quality": 90,
+            "required_durability": 40,
+            "required_craftsmanship": 2800,
+            "required_control": 2900,
+            "progress_per_100": 110.5,
+            "quality_per_100": 140.8
+        }
+    ]
+
+    # レシピを作成
+    for recipe in recipes:
+        response = client.post("/recipes", json=recipe)
+        assert response.status_code == 200
+
+    # 名前による検索
+    response = client.get("/search/recipes?name=ハイスチール")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert all("ハイスチール" in item["name"] for item in data["items"])
+
+    # 職業による検索
+    response = client.get("/search/recipes?job=BSM")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert all(item["job"] == "BSM" for item in data["items"])
+
+    # レベル範囲による検索
+    response = client.get("/search/recipes?min_level=89&max_level=90")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert all(89 <= item["recipe_level"] <= 90 for item in data["items"])
+
+    # クラフター要求値による検索
+    response = client.get("/search/recipes?min_craftsmanship=3000&max_control=3300")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert all(item["required_craftsmanship"] >= 3000 and item["required_control"] <= 3300 for item in data["items"])
+
+def test_search_recipes_no_results():
+    # 存在しないレシピ名での検索
+    response = client.get("/search/recipes?name=存在しないレシピ")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 0
+    assert len(data["items"]) == 0
+
+def test_search_recipes_invalid_params():
+    # 無効なレベル範囲での検索
+    response = client.get("/search/recipes?min_level=-1")
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
+
+    # 無効なクラフター要求値での検索
+    response = client.get("/search/recipes?min_craftsmanship=-100")
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data 
